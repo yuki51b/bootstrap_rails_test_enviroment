@@ -1,0 +1,36 @@
+FROM ruby:3.2.3
+
+# 依存パッケージとNode/Yarnのリポジトリ追加
+RUN apt-get update -qq && apt-get install -y curl gnupg build-essential libpq-dev vim
+
+# Node.js 20 のセットアップ（npm付き）
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+
+# Yarn のリポジトリ追加
+RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+
+# インストール
+RUN apt-get update -qq && apt-get install -y nodejs yarn
+
+# Railsアプリ配置
+RUN mkdir /myapp
+WORKDIR /myapp
+
+# Gemインストール
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+# アプリ全体コピー（JavaScriptファイル含む）
+COPY . .
+
+# Yarn依存インストール（package.json, yarn.lock も含まれている前提）
+RUN yarn install
+RUN yarn build
+
+# Entrypoint
+COPY entrypoint.sh /usr/bin/
+RUN chmod +x /usr/bin/entrypoint.sh
+
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["./bin/dev"]
